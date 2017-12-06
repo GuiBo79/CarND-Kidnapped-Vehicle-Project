@@ -46,12 +46,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
         weights[i] = particles[i].weight;
         
     }
-    cout << "Initialization" << endl;
-    cout << "Particle 0 ID : " << particles[0].id << endl;
-    cout << "Particle 0 X : " << particles[0].x << endl;
-    cout << "Particle 0 Y : " << particles[0].y << endl;
-    cout << "Particle 0 Theta : " << particles[0].theta << endl;
-    cout << "Particle 0 Weight : " << particles[0].weight << endl;
     
     is_initialized = true;
     
@@ -82,12 +76,14 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
             
             particles[i].x += vel_yawr*(sin(particles[i].theta + yawr_dt)-sin(particles[i].theta));
             particles[i].y += vel_yawr*(cos(particles[i].theta) - cos(particles[i].theta + yawr_dt));
-            particles[i].theta = particles[i].theta + yawr_dt;
+            particles[i].theta +=  yawr_dt;
             
         }else{
             
             particles[i].x += velocity * delta_t * cos(particles[i].theta);
             particles[i].y += velocity * delta_t * sin(particles[i].theta);
+            
+            
             
         }
         
@@ -101,7 +97,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
     
 }
 
-void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
+inline void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
     // TODO: Find the predicted measurement that is closest to each observed measurement and assign the
     //   observed measurement to this particular landmark.
     // NOTE: this method will NOT be called by the grading code. But you will probably find it useful to
@@ -132,6 +128,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
         for (int id=0; id < distance.size() ; id++){ //Assign Id to observations
             if (*min_value == distance[id]){
                 observations[i].id = obs_id[id];
+                id = distance.size();
             }
         }
         
@@ -162,7 +159,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     std::vector <double>  distance ; // distance between observation and landmark
     distance.resize(map_landmarks.landmark_list.size());
     
-    const double gauss_norm = 1/(2*M_PI*std_landmark[0]*std_landmark[1]);
+    const double gauss_norm = 1.0/(2*M_PI*std_landmark[0]*std_landmark[1]);
     double sum_weights = 0.0;
     
     
@@ -193,15 +190,19 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
         
         for (int j=0; j < observations.size() ;j++){ //Car to Map Coordinates
-            car_to_map_obs[j].x = par_x + (cos(particles[j].theta)*observations[j].x) - (sin(particles[j].theta)*observations[j].y);
-            car_to_map_obs[j].y = par_y + (sin(particles[j].theta)*observations[j].x) + (cos(particles[j].theta)*observations[j].y);
+            const double cos_ = cos(particles[z].theta);
+            const double sin_ = sin(particles[z].theta);
+                                    
+            
+            car_to_map_obs[j].x = par_x + (cos_*observations[j].x) - (sin_*observations[j].y);
+            car_to_map_obs[j].y = par_y + (sin_*observations[j].x) + (cos_*observations[j].y);
             
         }//end j Car to Map coordinates*/
         
         
         dataAssociation(predicted, car_to_map_obs);
         
-        /*Set Association Test
+        //Set Association Test
         std::vector<int> associations_id;
         std::vector<double> sense_x;
         std::vector<double> sense_y;
@@ -213,7 +214,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             sense_y.push_back(car_to_map_obs[t].y);
         }
         
-        SetAssociations(particles[z], associations_id, sense_x, sense_y);*/
+        SetAssociations(particles[z], associations_id, sense_x, sense_y);
         
         double obs_x=0.0;
         double obs_y=0.0;
@@ -222,8 +223,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
         double eq_term1 = 0.0 ;
         double eq_term2 = 0.0 ;
-        double obs_weight = 0.0 ;
-        particles[z].weight  = 1.0;
+        long double obs_weight = 0.0 ;
+        particles[z].weight  = 0.0;
         
         
         for (int j = 0; j < car_to_map_obs.size() ; j++){
@@ -247,7 +248,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             
             eq_term1 = (pow(obs_x-land_x,2))/(2*pow(std_landmark[0],2));
             eq_term2 = (pow(obs_y-land_y,2))/(2*pow(std_landmark[1],2));
-            obs_weight = gauss_norm*exp(-(eq_term1+eq_term2));
+            obs_weight = gauss_norm*exp(-1.0*(eq_term1+eq_term2));
+    
             
             particles[z].weight += obs_weight;
                 
@@ -264,6 +266,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             
         }// end j car_to_maps_obs
         
+        obs_weight = 0.0;
         weights[z] = particles[z].weight;
         sum_weights += weights[z];
         
@@ -271,10 +274,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
     } //end for z main loop
     
-    for (int i = 0; i < num_particles; i++){
+    for (int i = 0; i < num_particles; i++){ //Regularization
         particles[i].weight /= sum_weights;
         weights[i] = particles[i].weight;
+        
+        
     }
+    
+    sum_weights = 0.0;
     
     
     
