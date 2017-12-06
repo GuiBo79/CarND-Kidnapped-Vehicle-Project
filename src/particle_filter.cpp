@@ -163,13 +163,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     distance.resize(map_landmarks.landmark_list.size());
     
     const double gauss_norm = 1/(2*M_PI*std_landmark[0]*std_landmark[1]);
-    double sum_weights = 1.0;
+    double sum_weights = 0.0;
     
     
     
     
     
     for (int z = 0 ; z < num_particles ; z++){
+        
         
         double par_x = particles[z].x;
         double par_y = particles[z].y;
@@ -200,7 +201,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
         dataAssociation(predicted, car_to_map_obs);
         
-        //Set Association Test
+        /*Set Association Test
         std::vector<int> associations_id;
         std::vector<double> sense_x;
         std::vector<double> sense_y;
@@ -212,7 +213,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             sense_y.push_back(car_to_map_obs[t].y);
         }
         
-        SetAssociations(particles[z], associations_id, sense_x, sense_y);
+        SetAssociations(particles[z], associations_id, sense_x, sense_y);*/
         
         double obs_x=0.0;
         double obs_y=0.0;
@@ -248,7 +249,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             eq_term2 = (pow(obs_y-land_y,2))/(2*pow(std_landmark[1],2));
             obs_weight = gauss_norm*exp(-(eq_term1+eq_term2));
             
-            particles[z].weight *= obs_weight;
+            particles[z].weight += obs_weight;
                 
             
             
