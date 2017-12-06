@@ -88,6 +88,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
             
             particles[i].x += velocity * delta_t * cos(particles[i].theta);
             particles[i].y += velocity * delta_t * sin(particles[i].theta);
+            
         }
         
         //Adding Noise
@@ -191,8 +192,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
         
         for (int j=0; j < observations.size() ;j++){ //Car to Map Coordinates
-            car_to_map_obs[j].x = par_x + (cos(-M_PI/2)*observations[j].x) - (sin(-M_PI/2)*observations[j].y);
-            car_to_map_obs[j].y = par_y + (sin(-M_PI/2)*observations[j].x) + (cos(-M_PI/2)*observations[j].y);
+            car_to_map_obs[j].x = par_x + (cos(particles[j].theta)*observations[j].x) - (sin(particles[j].theta)*observations[j].y);
+            car_to_map_obs[j].y = par_y + (sin(particles[j].theta)*observations[j].x) + (cos(particles[j].theta)*observations[j].y);
             
         }//end j Car to Map coordinates*/
         
@@ -213,9 +214,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
         SetAssociations(particles[z], associations_id, sense_x, sense_y);
         
-        
-        
-        
         double obs_x=0.0;
         double obs_y=0.0;
         double land_x=0.0;
@@ -231,41 +229,39 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             
             obs_x = car_to_map_obs[j].x;
             obs_y = car_to_map_obs[j].y;
-
             
-            for(int i = 0; i < predicted.size(); i++){
+            
+            for(int i = 0; i < map_landmarks.landmark_list.size(); i++){
                 
-                if (car_to_map_obs[j].id == predicted[i].id){
-                    land_x = predicted[i].x;
-                    land_y = predicted[i].y;
+                if (car_to_map_obs[j].id == map_landmarks.landmark_list[i].id_i){
+                    land_x = map_landmarks.landmark_list[i].x_f;
+                    land_y = map_landmarks.landmark_list[i].y_f;
                 }//end if
             }//end i landmarks
             
             /*obs_x = 0;
-            obs_y = 5;
-            land_x = 2;
-            land_y  = 1;*/
+             obs_y = 5;
+             land_x = 2;
+             land_y  = 1;*/
             
             eq_term1 = (pow(obs_x-land_x,2))/(2*pow(std_landmark[0],2));
             eq_term2 = (pow(obs_y-land_y,2))/(2*pow(std_landmark[1],2));
-            obs_weight += gauss_norm*exp(-(eq_term1+eq_term2));
+            obs_weight = gauss_norm*exp(-(eq_term1+eq_term2));
             
-            if (obs_weight > 0){
-                particles[z].weight *= obs_weight;
+            particles[z].weight *= obs_weight;
                 
-            }
             
+            
+            /*
             cout << "======================================" << endl;
             cout << "OBSERVATION " << j << endl;
             cout << "Obs X: " << obs_x << " Obs Y: " << obs_y << endl;
             cout << "Land_X: " << land_x << " Land_Y: " << land_y << endl;
             cout << "Weights: " << obs_weight << endl;
-        
+            */
             
- 
+            
         }// end j car_to_maps_obs
-        
-       
         
         weights[z] = particles[z].weight;
         sum_weights += weights[z];
