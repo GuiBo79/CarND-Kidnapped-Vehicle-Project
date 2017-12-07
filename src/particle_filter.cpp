@@ -67,13 +67,13 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
     normal_distribution<double> dist_theta (0,std_pos[2]);
     
     const double yawr_dt = yaw_rate*delta_t;
-    const double vel_yawr = velocity/yaw_rate;
+    
     
     for (int i=0; i<particles.size(); i++){
         
         //Prediction Step
         if (fabs(yaw_rate) > 0.001){
-            
+            const double vel_yawr = velocity/yaw_rate;
             particles[i].x += vel_yawr*(sin(particles[i].theta + yawr_dt)-sin(particles[i].theta));
             particles[i].y += vel_yawr*(cos(particles[i].theta) - cos(particles[i].theta + yawr_dt));
             particles[i].theta +=  yawr_dt;
@@ -160,6 +160,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     distance.resize(map_landmarks.landmark_list.size());
     
     const double gauss_norm = 1.0/(2*M_PI*std_landmark[0]*std_landmark[1]);
+    const double sigma_xx = 2*pow(std_landmark[0],2);
+    const double sigma_yy = 2*pow(std_landmark[1],2);
     double sum_weights = 0.0;
     
     
@@ -224,7 +226,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         double eq_term1 = 0.0 ;
         double eq_term2 = 0.0 ;
         long double obs_weight = 0.0 ;
-        particles[z].weight  = 0.0;
+        particles[z].weight  = 1.0;
         
         
         for (int j = 0; j < car_to_map_obs.size() ; j++){
@@ -246,12 +248,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
              land_x = 2;
              land_y  = 1;*/
             
-            eq_term1 = (pow(obs_x-land_x,2))/(2*pow(std_landmark[0],2));
-            eq_term2 = (pow(obs_y-land_y,2))/(2*pow(std_landmark[1],2));
+            eq_term1 = (pow(obs_x-land_x,2))/(sigma_xx);
+            eq_term2 = (pow(obs_y-land_y,2))/(sigma_yy);
             obs_weight = gauss_norm*exp(-1.0*(eq_term1+eq_term2));
     
             
-            particles[z].weight += obs_weight;
+            particles[z].weight *= obs_weight;
                 
             
             
@@ -274,12 +276,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         
     } //end for z main loop
     
+    /*
     for (int i = 0; i < num_particles; i++){ //Regularization
         particles[i].weight /= sum_weights;
         weights[i] = particles[i].weight;
         
         
-    }
+    }*/
     
     sum_weights = 0.0;
     
@@ -295,9 +298,10 @@ void ParticleFilter::resample() {
     vector<Particle> new_particles (num_particles);
     random_device rd;
     default_random_engine gen(rd());
+    discrete_distribution<int> index(weights.begin(), weights.end());
     
     for (int i = 0; i < num_particles; ++i) {
-        discrete_distribution<int> index(weights.begin(), weights.end());
+        
         new_particles[i] = particles[index(gen)];
         
     }
